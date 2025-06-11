@@ -1,0 +1,311 @@
+请帮我开发一个打印预约系统，前端使用 Vue3 + TypeScript + ElementPlus + Pinia + Vue Router + Axios，后端使用 Spring Boot 3 + MyBatis + MySQL + Sa-Token。主要功能包括用户注册登录、文档上传、设置打印参数、预约时间、生成订单、支付模拟、订单状态跟踪等，管理员可管理用户和订单。
+
+这是我的数据库脚本，记录了数据库结构
+-- 创建数据库
+CREATE DATABASE IF NOT EXISTS print_service_system
+  DEFAULT CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+USE print_service_system;
+-- 用户表：记录系统用户信息
+CREATE TABLE users (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT '用户ID',
+  account VARCHAR(50) NOT NULL UNIQUE COMMENT '登录账号（可为手机号/邮箱/自定义账号）',
+  username VARCHAR(50) NOT NULL COMMENT '用户昵称',
+  password VARCHAR(255) NOT NULL COMMENT '加密后的密码',
+  phone VARCHAR(20) COMMENT '手机号',
+  email VARCHAR(100) COMMENT '邮箱地址',
+  role ENUM('USER', 'ADMIN') NOT NULL DEFAULT 'USER' COMMENT '角色',
+  status ENUM('ENABLED', 'DISABLED') NOT NULL DEFAULT 'ENABLED' COMMENT '账户状态',
+  exp INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '用户经验值（每打印一面+2 EXP）',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  INDEX idx_account (account),
+  INDEX idx_username (username),
+  INDEX idx_phone (phone),
+  INDEX idx_email (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户表';
+-- 地址表：记录用户的多个收货地址，并支持设置默认地址
+CREATE TABLE addresses (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT '地址ID',
+  user_id BIGINT UNSIGNED NOT NULL COMMENT '关联用户ID',
+  full_address VARCHAR(512) NOT NULL COMMENT '完整地址',
+  receiver_name VARCHAR(50) NOT NULL COMMENT '收件人姓名',
+  receiver_phone VARCHAR(20) NOT NULL COMMENT '收件人电话',
+  is_default BOOLEAN NOT NULL DEFAULT FALSE COMMENT '是否为默认地址',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_user_id (user_id),
+  INDEX idx_is_default (is_default)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='地址表';
+-- 文档表：记录用户上传的打印文件信息
+CREATE TABLE documents (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT '文档ID',
+  user_id BIGINT UNSIGNED NOT NULL COMMENT '上传者ID',
+  file_name VARCHAR(255) NOT NULL COMMENT '文件名',
+  file_path VARCHAR(512) NOT NULL COMMENT '存储路径',
+  page_count INT NOT NULL COMMENT '页面数',
+  uploaded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '上传时间',
+  is_printed BOOLEAN NOT NULL DEFAULT FALSE COMMENT '是否已打印',
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_user_id (user_id),
+  INDEX idx_uploaded_at (uploaded_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='文档表';
+-- 打印订单表：记录用户的打印订单详情
+CREATE TABLE print_orders (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT '订单ID',
+  order_no VARCHAR(50) NOT NULL UNIQUE COMMENT '订单编号',
+  user_id BIGINT UNSIGNED NOT NULL COMMENT '关联用户ID',
+  document_id BIGINT UNSIGNED NOT NULL COMMENT '关联文档ID',
+  address_id BIGINT UNSIGNED COMMENT '实际选择的收货地址ID',
+  total_pages INT NOT NULL COMMENT '总页数',
+  price DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT '订单总价',
+  print_range VARCHAR(50) NOT NULL COMMENT '打印范围（ALL / CUSTOM）',
+  duplex BOOLEAN NOT NULL COMMENT '是否双面打印',
+  orientation VARCHAR(50) NOT NULL COMMENT '纸张方向（PORTRAIT / LANDSCAPE）',
+  binding VARCHAR(50) NOT NULL COMMENT '装订边（LEFT / TOP）',
+  copies INT NOT NULL COMMENT '打印份数',
+  remark TEXT COMMENT '用户备注',
+  status ENUM('UNPAID','PAID','PROCESSING','READY_TO_SEND','COMPLETED') NOT NULL DEFAULT 'UNPAID' COMMENT '订单状态',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '订单提交时间',
+  paid_at DATETIME COMMENT '支付时间',
+  completed_at DATETIME COMMENT '处理完成时间',
+  shipping_remark TEXT COMMENT '配送备注信息',
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE,
+  FOREIGN KEY (address_id) REFERENCES addresses(id) ON DELETE SET NULL,
+  INDEX idx_status (status),
+  INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='打印订单表';
+-- 系统统计表：每日统计系统的打印数据和收入情况
+CREATE TABLE system_statistics (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT '统计ID',
+  date DATE NOT NULL UNIQUE COMMENT '统计日期',
+  total_orders INT NOT NULL DEFAULT 0 COMMENT '当日总订单数',
+  total_printed_pages INT NOT NULL DEFAULT 0 COMMENT '当日总打印页数',
+  total_income DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT '当日总收入',
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后更新时间',
+  INDEX uk_date (date),
+  INDEX idx_updated_at (updated_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统统计表';
+
+这是API文档内容:"
+
+---
+
+### 接口总述
+
+所有用户接口均返回统一格式：
+
+```json
+{
+  "ifSuccess": true,
+  "status": 200,
+  "response": "操作成功",
+  "data": {}
+}
+```
+
+其中：
+- `ifSuccess`: 操作是否成功（布尔值）
+- `status`: HTTP 状态码（整数）
+- `response`: 操作结果描述信息（字符串）
+- `data`: 返回数据（对象或数组）
+
+---
+
+### 接口列表
+
+#### 1. 用户注册
+**路径**: `POST /api/user/register`
+**功能**: 注册新用户
+**请求体参数**:
+- `account`: 登录账号（字符串，必填）
+- `username`: 昵称（字符串，必填）
+- `password`: 密码（字符串，必填）
+- `phone`: 手机号（字符串，可选）
+- `email`: 邮箱（字符串，可选）
+**响应字段**:
+- `id`: 用户ID
+- `account`, `username`, `role`, `created_at`
+
+---
+
+#### 2. 用户登录
+**路径**: `POST /api/user/login`
+**功能**: 用户登录系统
+**请求体参数**:
+- `account`: 登录账号（字符串，必填）
+- `password`: 密码（字符串，必填）
+**响应字段**:
+- `token`: 访问令牌（字符串）
+- `userId`, `username`, `role`
+
+---
+
+#### 3. 获取当前用户信息
+**路径**: `GET /api/user/me`
+**功能**: 获取当前登录用户的基本信息
+**请求头参数**:
+- `satoken`: 用户鉴权 Token（字符串）
+**响应字段**:
+- `id`, `account`, `username`, `phone`, `email`, `role`, `exp`, `status`, `created_at`
+
+---
+
+#### 4. 修改个人信息
+**路径**: `PATCH /api/user/update`
+**功能**: 更新当前用户的昵称、手机号、邮箱等信息
+**请求头参数**:
+- `satoken`: 用户鉴权 Token（字符串）
+**请求体参数**（可选）:
+- `username`: 新昵称（字符串）
+- `phone`: 新手机号（字符串）
+- `email`: 新邮箱（字符串）
+**响应字段**:
+- `username`, `phone`, `email`（更新后的信息）
+
+---
+
+#### 5. 修改密码
+**路径**: `POST /api/user/change-password`
+**功能**: 修改当前用户密码
+**请求头参数**:
+- `satoken`: 用户鉴权 Token（字符串）
+**请求体参数**:
+- `oldPassword`: 旧密码（字符串，必填）
+- `newPassword`: 新密码（字符串，必填）
+**响应字段**: 无 data
+
+---
+
+#### 6. 获取用户经验与等级
+**路径**: `GET /api/user/exp`
+**功能**: 获取当前用户的打印经验值和对应等级
+**请求头参数**:
+- `satoken`: 用户鉴权 Token（字符串）
+**响应字段**:
+- `exp`: 经验值（整数）
+- `level`: 对应等级（整数）
+
+---
+
+#### 7. 获取用户订单列表（分页）
+**路径**: `GET /api/user/orders`
+**功能**: 分页获取当前用户的所有打印订单
+**请求头参数**:
+- `satoken`: 用户鉴权 Token（字符串）
+**查询参数**:
+- `page`: 当前页码（字符串，默认为1）
+- `size`: 每页数量（字符串，默认为10）
+**响应字段**:
+- `list`: 订单数组，每项包含：
+  - `id`, `orderNo`, `totalPages`, `price`, `duplex`, `copies`, `status`, `createdAt`
+- `total`: 总记录数（整数）
+
+---
+
+#### 8. 获取用户地址列表
+**路径**: `GET /api/user/addresses`
+**功能**: 获取当前用户保存的所有收货地址
+**请求头参数**:
+- `satoken`: 用户鉴权 Token（字符串）
+**响应字段**:
+- 地址数组，每项包含：
+  - `id`, `fullAddress`, `receiverName`, `receiverPhone`, `isDefault`
+
+---
+
+#### 9. 添加用户地址
+**路径**: `POST /api/user/address/add`
+**功能**: 添加一个新的收货地址
+**请求头参数**:
+- `satoken`: 用户鉴权 Token（字符串）
+**请求体参数**:
+- `fullAddress`: 完整地址（字符串，必填）
+- `receiverName`: 收件人姓名（字符串，必填）
+- `receiverPhone`: 收件人电话（字符串，必填）
+- `isDefault`: 是否设为默认地址（布尔值，可选）
+**响应字段**:
+- `id`, `fullAddress`, `receiverName`, `receiverPhone`, `isDefault`
+
+---
+
+#### 10. 设置默认地址
+**路径**: `PATCH /api/user/address/set-default/{addressId}`
+**功能**: 将指定地址设置为当前用户的默认地址
+**请求头参数**:
+- `satoken`: 用户鉴权 Token（字符串）
+**路径参数**:
+- `addressId`: 地址 ID（字符串，必填）
+**响应字段**: 无 data
+
+---
+
+### 鉴权说明
+
+- **需要 satoken 的接口**：仅限用户操作自身数据时使用，包括：
+  - 获取个人信息
+  - 修改个人信息
+  - 修改密码
+  - 获取经验等级
+  - 获取订单列表
+  - 获取地址列表
+  - 添加地址
+  - 设置默认地址
+- **不需要 satoken 的接口**：注册、登录
+
+---
+
+### 参数说明
+
+- **必填参数**：在接口中明确标注 required，如 account、username、password、oldPassword、newPassword、fullAddress、receiverName、receiverPhone。
+- **可选参数**：如 phone、email、isDefault、page、size。
+- **路径参数**：如 addressId，必须提供且为字符串类型。
+
+---
+
+### 数据权限控制
+
+所有涉及用户数据的操作（如修改信息、查看订单、管理地址），都基于当前登录用户的身份进行限制，保证用户只能访问和修改自己的数据，由 satoken 控制权限。
+
+---
+
+"
+
+---
+
+## 📁 前端项目目录结构（Vue3 + TS）
+
+```
+src/
+├── assets/               # 图片资源
+├── components/            # 公共组件
+├── views/                 # 页面组件
+│   ├── home/
+│   ├── order/
+│   ├── upload/
+│   └── admin/
+├── router/                # 路由配置
+├── store/                 # Pinia 状态管理
+├── services/              # 接口请求封装
+├── utils/                 # 工具函数
+├── types/                 # TypeScript 类型定义
+├── App.vue
+└── main.ts
+```
+
+---
+
+## 📁 后端项目目录结构（Spring Boot 3）
+
+```
+com.printsystem/
+├── controller/            # 控制器类
+├── service/               # 业务接口与实现
+├── mapper/                # MyBatis Mapper
+├── model/                 # 实体类（对应数据库表）
+├── config/                # 配置类（Sa-Token、跨域等）
+├── dto/                   # 数据传输对象
+├── exception/             # 异常处理
+├── scheduler/             # 定时任务
+├── PrintSystemApplication.java # 启动类
+```
