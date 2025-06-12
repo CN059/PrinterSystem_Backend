@@ -309,3 +309,148 @@ com.printsystem/
 ├── scheduler/             # 定时任务
 ├── PrintSystemApplication.java # 启动类
 ```
+目前后端代码有：密码处理工具类：“package com.powercess.printersystem.printersystem.utils;
+
+                 import org.mindrot.jbcrypt.BCrypt;
+                 public class PasswordUtils {
+                     /**
+                      * 加密明文密码
+                      */
+                     public static String hashPassword(String plainText) {
+                         return BCrypt.hashpw(plainText, BCrypt.gensalt());
+                     }
+                     /**
+                      * 验证密码是否匹配
+                      */
+                     public static boolean checkPassword(String plainText, String hashed) {
+                         return BCrypt.checkpw(plainText, hashed);
+                     }
+                 }”
+全局响应DTO：“package com.powercess.printersystem.printersystem.dto;
+
+         import lombok.Data;
+         @Data
+         public class ResponseResult<T> {
+             private boolean ifSuccess;
+             private int status;
+             private String response;
+             private T data;
+             public static <T> ResponseResult<T> success(T data) {
+                 ResponseResult<T> result = new ResponseResult<>();
+                 result.setIfSuccess(true);
+                 result.setStatus(200);
+                 result.setResponse("操作成功");
+                 result.setData(data);
+                 return result;
+             }
+             public static <T> ResponseResult<T> error(int status, String message) {
+                 ResponseResult<T> result = new ResponseResult<>();
+                 result.setIfSuccess(false);
+                 result.setStatus(status);
+                 result.setResponse(message);
+                 return result;
+             }
+         }”
+全局异常处理：“package com.powercess.printersystem.printersystem.exception;
+
+        import com.powercess.printersystem.printersystem.dto.ResponseResult;
+        import org.springframework.http.HttpStatus;
+        import org.springframework.web.bind.annotation.ExceptionHandler;
+        import org.springframework.web.bind.annotation.RestControllerAdvice;
+        @RestControllerAdvice
+        public class GlobalExceptionHandler {
+            @ExceptionHandler(Exception.class)
+            public ResponseResult<String> handleException(Exception e) {
+                return ResponseResult.error(HttpStatus.INTERNAL_SERVER_ERROR.value(), e.getMessage());
+            }
+            // 可以添加更多特定异常的处理逻辑，如参数校验失败等
+        }”
+satoken接口放行策略：“package com.powercess.printersystem.printersystem.config;
+
+               import cn.dev33.satoken.interceptor.SaInterceptor;
+               import cn.dev33.satoken.router.SaRouter;
+               import cn.dev33.satoken.stp.StpUtil;
+               import org.springframework.context.annotation.Configuration;
+               import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+               import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+               @Configuration
+               public class SaTokenConfig implements WebMvcConfigurer {
+                   // 注册 Sa-Token 拦截器
+                   @Override
+                   public void addInterceptors(InterceptorRegistry registry) {
+                       registry.addInterceptor(new SaInterceptor(handler -> {
+                           // 定义需要鉴权的路径和放行的路径
+                           SaRouter.match("/**")              // 匹配所有路径
+                                   .notMatch("/api/user/register")  // 放行注册接口
+                                   .notMatch("/api/user/login")     // 放行登录接口
+                                   .check(r -> StpUtil.checkLogin()); // 其他路径需要登录才能访问
+                       })).addPathPatterns("/**");
+                   }
+               }”
+后端采用了多种库，可见pom文件部分内容如下：“<dependencies>
+                                <dependency>
+                                    <groupId>org.springframework.boot</groupId>
+                                    <artifactId>spring-boot-starter-web</artifactId>
+                                </dependency>
+                                <dependency>
+                                    <groupId>org.springframework.boot</groupId>
+                                    <artifactId>spring-boot-configuration-processor</artifactId>
+                                    <optional>true</optional>
+                                </dependency>
+                                <dependency>
+                                    <groupId>org.mindrot</groupId>
+                                    <artifactId>jbcrypt</artifactId>
+                                    <version>0.4</version>
+                                </dependency>
+                                <dependency>
+                                    <groupId>org.projectlombok</groupId>
+                                    <artifactId>lombok</artifactId>
+                                    <version>1.18.38</version>
+                                </dependency>
+                                <dependency>
+                                    <groupId>com.mysql</groupId>
+                                    <artifactId>mysql-connector-j</artifactId>
+                                    <scope>runtime</scope>
+                                </dependency>
+                                <dependency>
+                                    <groupId>com.baomidou</groupId>
+                                    <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+                                    <version>3.5.12</version>
+                                </dependency>
+                                <dependency>
+                                    <groupId>cn.dev33</groupId>
+                                    <artifactId>sa-token-spring-boot3-starter</artifactId>
+                                    <version>1.44.0</version>
+                                </dependency>
+                                <dependency>
+                                    <groupId>org.springframework.boot</groupId>
+                                    <artifactId>spring-boot-starter-test</artifactId>
+                                    <scope>test</scope>
+                                </dependency>
+                            </dependencies>”，yml信息如下：“spring:
+                                                        application:
+                                                          name: PrinterSystem
+                                                        datasource:
+                                                          url: jdbc:mysql://localhost:3306/print_service_system?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
+                                                          username: root
+                                                          password: Pubg20061027
+                                                          driver-class-name: com.mysql.cj.jdbc.Driver
+
+                                                      server:
+                                                        port: 8080
+
+                                                      mybatis-plus:
+                                                        configuration:
+                                                          log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+                                                        mapper-locations: classpath*:mapper/**/*.xml
+
+                                                      sa-token:
+                                                        token-name: satoken
+                                                        timeout: 2592000
+                                                        is-concurrent: true
+                                                        is-share: true
+                                                        is-read-cookie: false
+                                                        isPrint: true
+                                                        isLog: true
+
+”，现在可以在这些基础上继续完善
