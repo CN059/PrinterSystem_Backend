@@ -21,4 +21,6 @@ sa-token:
   is-concurrent: true
   is-share: true
   is-read-cookie: false
-  isPrint: false
+  isPrint: true
+  isLog: true
+
