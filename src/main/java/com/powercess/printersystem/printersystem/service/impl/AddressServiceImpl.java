@@ -32,7 +32,9 @@ public class AddressServiceImpl implements AddressService {
             addressMapper.setAllNotDefault(userId);
         }
         addressMapper.insert(address);
-        return ResponseResult.success(address);
+        // 插入后重新查询，确保获取到数据库自动生成的字段（如 id、created_at）
+        Address insertedAddress = addressMapper.selectById(address.getId());
+        return ResponseResult.success(insertedAddress);
     }
     @Override
     public ResponseResult<?> setDefaultAddress(Long addressId) {

@@ -23,6 +23,9 @@
     <update id="update">
         UPDATE users
         <set>
+            <if test="account != null">
+                account = #{account},
+            </if>
             <if test="username != null">
                 username = #{username},
             </if>

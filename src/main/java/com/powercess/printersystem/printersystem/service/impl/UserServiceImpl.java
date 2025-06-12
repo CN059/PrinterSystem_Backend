@@ -52,16 +52,27 @@ public class UserServiceImpl implements UserService {
     public ResponseResult<User> getCurrentUserInfo() {
         Long userId = StpUtil.getLoginIdAsLong();
         User user = userMapper.selectById(userId);
+        if (user != null) {
+            user.setPassword(null); // 安全处理
+        }
         return ResponseResult.success(user);
     }
     @Override
-    public ResponseResult<User> updateUserInfo(String username, String phone, String email) {
+    public ResponseResult<User> updateUserInfo(String account, String username, String phone, String email) {
         Long userId = StpUtil.getLoginIdAsLong();
         User user = userMapper.selectById(userId);
+        if (account != null && !account.equals(user.getAccount())) {
+            if (userMapper.selectByAccount(account) != null) {
+                return ResponseResult.error(400, "账号已存在");
+            }
+            user.setAccount(account);
+        }
         if (username != null) user.setUsername(username);
         if (phone != null) user.setPhone(phone);
         if (email != null) user.setEmail(email);
         userMapper.update(user);
+        user = userMapper.selectById(userId); // 重新查询以获取最新数据
+        user.setPassword(null); // 安全处理
         return ResponseResult.success(user);
     }
     @Override
@@ -71,8 +82,10 @@ public class UserServiceImpl implements UserService {
         if (!PasswordUtils.checkPassword(oldPassword, user.getPassword())) {
             return ResponseResult.error(400, "旧密码错误");
         }
-        user.setPassword(PasswordUtils.hashPassword(newPassword));
-        userMapper.update(user);
+        String hashedNewPassword = PasswordUtils.hashPassword(newPassword);
+        userMapper.updatePasswordById(userId, hashedNewPassword);
+        // 可选：添加日志验证是否执行成功
+        System.out.println("密码已更新为：" + hashedNewPassword);
         return ResponseResult.success(null);
     }
     @Override

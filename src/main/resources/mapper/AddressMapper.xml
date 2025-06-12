@@ -3,7 +3,7 @@
 
 <mapper namespace="com.powercess.printersystem.printersystem.mapper.AddressMapper">
 
-    <insert id="insert">
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO addresses (
             user_id,
             full_address,

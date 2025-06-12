@@ -38,10 +38,11 @@ public class UserController {
     // 修改个人信息
     @PatchMapping("/update")
     public ResponseResult<?> updateUserInfo(@RequestBody Map<String, String> payload) {
+        String account = payload.get("account");
         String username = payload.get("username");
         String phone = payload.get("phone");
         String email = payload.get("email");
-        return userService.updateUserInfo(username, phone, email);
+        return userService.updateUserInfo(account, username, phone, email);
     }
     // 修改密码
     @PostMapping("/change-password")
