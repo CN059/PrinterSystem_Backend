@@ -240,6 +240,68 @@ CREATE TABLE system_statistics (
 
 ---
 
+### 有关文件上传下载的接口
+
+---
+
+### 1. 文档上传
+- **路径**: `POST /api/document/upload`
+- **功能**: 用户上传文档文件（支持 PDF/DOCX/XLSX/PPTX/TXT）
+- **请求头参数**:
+  - `satoken`: 用户鉴权 Token（字符串，需登录后获取）
+- **请求体参数**:
+  - `file`: 要上传的文件（二进制格式，必填）
+- **使用方式**:
+  - 使用 `multipart/form-data` 格式提交文件
+- **返回内容**:
+  - 返回上传后的文档信息，包括 ID、文件名、页数、上传时间等
+
+---
+
+### 2. 文档下载
+- **路径**: `GET /api/document/download/{documentId}`
+- **功能**: 下载指定 ID 的文档文件
+- **请求头参数**:
+  - `satoken`: 用户鉴权 Token（字符串）
+- **路径参数**:
+  - `documentId`: 要下载的文档 ID（整数，必填）
+- **使用方式**:
+  - 发起 GET 请求，携带文档 ID 和 token
+- **返回内容**:
+  - 成功时返回文件流，前端应以 blob 处理并触发下载
+  - 失败时返回 JSON 错误信息
+
+---
+
+### 3. 获取当前用户所有文档（分页）
+- **路径**: `GET /api/document/list`
+- **功能**: 分页获取当前用户上传的所有文档
+- **请求头参数**:
+  - `satoken`: 用户鉴权 Token（字符串）
+- **查询参数**:
+  - `page`: 当前页码（可选，默认为 1）
+  - `size`: 每页数量（可选，默认为 10）
+- **使用方式**:
+  - 发起 GET 请求，携带 token 和分页参数
+- **返回内容**:
+  - 包含文档列表和总记录数的对象，每项包含 ID、文件名、页数、上传时间等
+
+---
+
+### 4. 删除指定文档
+- **路径**: `DELETE /api/document/delete/{documentId}`
+- **功能**: 删除指定 ID 的文档
+- **请求头参数**:
+  - `satoken`: 用户鉴权 Token（字符串）
+- **路径参数**:
+  - `documentId`: 要删除的文档 ID（整数，必填）
+- **使用方式**:
+  - 发起 DELETE 请求，携带文档 ID 和 token
+- **返回内容**:
+  - 成功或失败的状态信息，无数据返回
+
+---
+
 ### 鉴权说明
 
 - **需要 satoken 的接口**：仅限用户操作自身数据时使用，包括：
@@ -293,215 +355,254 @@ src/
 └── main.ts
 ```
 
+### ✅ Spring Boot 部分
+
+在生成【订单模块】/【文档模块】/【管理员模块】的后端代码时，请基于以下项目结构与编码风格进行开发：
+
 ---
 
-## ✅ Spring Boot 后端项目结构总结（用户模块已完成）
-
-### 📁 项目目录结构
+## 📁 项目目录结构（Spring Boot 后端）
 
 ```
 src/
-├── main/
-│   ├── java/
-│   │   └── com.powercess.printersystem.printersystem/
-│   │       │ PrinterSystemApplication.java
-│   │       │
-│   │       ├── config/
-│   │       │   └── SaTokenConfig.java        # Sa-Token 鉴权配置
-│   │       │
-│   │       ├── controller/
-│   │       │   └── UserController.java       # 用户相关接口
-│   │       │
-│   │       ├── service/
-│   │       │   ├── UserService.java          # 用户服务接口
-│   │       │   ├── AddressService.java       # 地址服务接口
-│   │       │   └── impl/
-│   │       │       ├── UserServiceImpl.java  # 用户服务实现类
-│   │       │       └── AddressServiceImpl.java # 地址服务实现类
-│   │       │
-│   │       ├── mapper/
-│   │       │   ├── UserMapper.java           # 用户 Mapper 接口
-│   │       │   └── AddressMapper.java        # 地址 Mapper 接口
-│   │       │
-│   │       ├── model/
-│   │       │   ├── User.java                 # 用户实体类
-│   │       │   └── Address.java              # 地址实体类
-│   │       │
-│   │       ├── dto/
-│   │       │   └── ResponseResult.java       # 统一返回格式封装类
-│   │       │
-│   │       ├── exception/
-│   │       │   └── GlobalExceptionHandler.java # 全局异常处理
-│   │       │
-│   │       └── utils/
-│   │           └── PasswordUtils.java        # 密码加密工具类
-│   │
-│   └── resources/
-│       ├── application.yml                   # 配置文件
-│       └── mapper/
-│           ├── UserMapper.xml                # 用户 SQL 映射文件
-│           └── AddressMapper.xml             # 地址 SQL 映射文件
-│
-└── test/
+└── main/
     └── java/
-        └── com.powercess.printersystem.printersystem/
-            └── PrinterSystemApplicationTests.java
+        └── com.powercess.printersystem.printersystem
+            │ PrinterSystemApplication.java
+            │
+            ├── config/
+            │   └── SaTokenConfig.java             # Sa-Token 配置类
+            │
+            ├── controller/
+            │   ├── UserController.java            # 用户控制器
+            │   ├── DocumentController.java        # 文档控制器
+            │   ├── OrderController.java           # 订单控制器（待创建）
+            │   └── AdminController.java           # 管理员控制器（待创建）
+            │
+            ├── service/
+            │   ├── UserService.java               # 用户服务接口
+            │   ├── AddressService.java            # 地址服务接口
+            │   ├── DocumentService.java           # 文档服务接口
+            │   ├── OrderService.java              # 订单服务接口（待创建）
+            │   └── AdminService.java              # 管理员服务接口（待创建）
+            │       └── impl/
+            │           ├── UserServiceImpl.java   # 用户服务实现
+            │           ├── AddressServiceImpl.java# 地址服务实现
+            │           ├── DocumentServiceImpl.java # 文档服务实现
+            │           ├── OrderServiceImpl.java  # 订单服务实现（待创建）
+            │           └── AdminServiceImpl.java  # 管理员服务实现（待创建）
+            │
+            ├── mapper/
+            │   ├── UserMapper.java                # 用户 Mapper 接口
+            │   ├── AddressMapper.java             # 地址 Mapper 接口
+            │   ├── DocumentMapper.java            # 文档 Mapper 接口
+            │   ├── OrderMapper.java               # 订单 Mapper 接口（待创建）
+            │   └── AdminMapper.java               # 管理员相关 Mapper（可选）（待创建）
+            │
+            ├── model/
+            │   ├── User.java                      # 用户实体类
+            │   ├── Address.java                   # 地址实体类
+            │   ├── Document.java                  # 文档实体类
+            │   ├── PrintOrder.java                # 打印订单实体类（待创建）
+            │   └── SystemStatistic.java           # 系统统计实体类（待创建）
+            │
+            ├── dto/
+            │   └── ResponseResult.java            # 统一响应封装类
+            │
+            ├── exception/
+            │   ├── GlobalExceptionHandler.java    # 全局异常处理器
+            │   └── BusinessException.java        # 自定义业务异常类
+            │
+            └── utils/
+                └── PasswordUtils.java             # 密码加密工具类
 ```
 
+---
 
-请根据以下 Spring Boot 项目结构和已有的用户模块代码风格，帮我生成【订单模块】/【文档模块】/【管理员模块】的后端代码，要求：
+## 🧱 编码规范与要求
 
-使用 MyBatis + MySQL 操作数据库。
-所有接口返回统一格式 ResponseResult<T>。
-需要鉴权的接口使用 Sa-Token 控制权限。
-Mapper XML 文件放在 resources/mapper/ 目录下。
-实体类放在 model 包中。
-Service 层接口与实现分离，放在 service 和 service.impl 包中。
-Controller 放在 controller 包中。
-DTO 统一封装为 ResponseResult<T>。
-数据库字段命名与 Java 字段自动映射（驼峰转下划线）。
-提供完整 CRUD 功能（查询、新增、更新、删除）。
-对于复杂业务逻辑提供事务支持。
-所有接口路径遵循 /api/xxx 格式。
-所有接口参数使用 JSON 格式传递（@RequestBody）。
-所有敏感字段（如密码）不在响应中返回。
-提供分页功能（GET 请求中 page 和 size 参数）。
-所有接口需符合 RESTful 风格。
-如果是订单模块，还需模拟支付成功状态变更。
-如果是管理员模块，需支持禁用用户、查看所有订单等功能。
-Mapper 接口应标注 @Mapper 注解，并放置在 mapper 包中。
-Mapper 接口方法应与 XML 文件中的 SQL 语句一一对应。
-Mapper 可被任意 Service 调用，保持高内聚低耦合。
-目前后端代码有：密码处理工具类：“package com.powercess.printersystem.printersystem.utils;
-                 public class PasswordUtils {
-                     public static String hashPassword(String plainText) {......}
-                     public static boolean checkPassword(String plainText, String hashed) {......}
-                 }”
-全局响应DTO：“package com.powercess.printersystem.printersystem.dto;
+### ✅ 数据库映射规则
 
-         import lombok.Data;
-         @Data
-         public class ResponseResult<T> {
-             private boolean ifSuccess;
-             private int status;
-             private String response;
-             private T data;
-             public static <T> ResponseResult<T> success(T data) {
-                 ResponseResult<T> result = new ResponseResult<>();
-                 result.setIfSuccess(true);
-                 result.setStatus(200);
-                 result.setResponse("操作成功");
-                 result.setData(data);
-                 return result;
-             }
-             public static <T> ResponseResult<T> error(int status, String message) {
-                 ResponseResult<T> result = new ResponseResult<>();
-                 result.setIfSuccess(false);
-                 result.setStatus(status);
-                 result.setResponse(message);
-                 return result;
-             }
-         }”
-全局异常处理：“package com.powercess.printersystem.printersystem.exception;
+- 实体类字段使用驼峰命名法。
+- MyBatis 自动将驼峰字段映射为下划线数据库字段（如 `userName` → `user_name`）。
+- Mapper XML 文件位于 `resources/mapper/` 目录中，路径与 Java Mapper 接口包结构一致。
 
-        import com.powercess.printersystem.printersystem.dto.ResponseResult;
-        import org.springframework.http.HttpStatus;
-        import org.springframework.web.bind.annotation.ExceptionHandler;
-        import org.springframework.web.bind.annotation.RestControllerAdvice;
-        @RestControllerAdvice
-        public class GlobalExceptionHandler {
-            @ExceptionHandler(Exception.class)
-            public ResponseResult<String> handleException(Exception e) {
-                return ResponseResult.error(HttpStatus.INTERNAL_SERVER_ERROR.value(), e.getMessage());
-            }
-            // 可以添加更多特定异常的处理逻辑，如参数校验失败等
-        }”
-satoken接口放行策略：“package com.powercess.printersystem.printersystem.config;
+### ✅ 接口返回格式
 
-               import cn.dev33.satoken.interceptor.SaInterceptor;
-               import cn.dev33.satoken.router.SaRouter;
-               import cn.dev33.satoken.stp.StpUtil;
-               import org.springframework.context.annotation.Configuration;
-               import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
-               import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
-               @Configuration
-               public class SaTokenConfig implements WebMvcConfigurer {
-                   // 注册 Sa-Token 拦截器
-                   @Override
-                   public void addInterceptors(InterceptorRegistry registry) {
-                       registry.addInterceptor(new SaInterceptor(handler -> {
-                           // 定义需要鉴权的路径和放行的路径
-                           SaRouter.match("/**")              // 匹配所有路径
-                                   .notMatch("/api/user/register")  // 放行注册接口
-                                   .notMatch("/api/user/login")     // 放行登录接口
-                                   .check(r -> StpUtil.checkLogin()); // 其他路径需要登录才能访问
-                       })).addPathPatterns("/**");
-                   }
-               }”
-后端采用了多种库，可见pom文件部分内容如下：“<dependencies>
-                                <dependency>
-                                    <groupId>org.springframework.boot</groupId>
-                                    <artifactId>spring-boot-starter-web</artifactId>
-                                </dependency>
-                                <dependency>
-                                    <groupId>org.springframework.boot</groupId>
-                                    <artifactId>spring-boot-configuration-processor</artifactId>
-                                    <optional>true</optional>
-                                </dependency>
-                                <dependency>
-                                    <groupId>org.mindrot</groupId>
-                                    <artifactId>jbcrypt</artifactId>
-                                    <version>0.4</version>
-                                </dependency>
-                                <dependency>
-                                    <groupId>org.projectlombok</groupId>
-                                    <artifactId>lombok</artifactId>
-                                    <version>1.18.38</version>
-                                </dependency>
-                                <dependency>
-                                    <groupId>com.mysql</groupId>
-                                    <artifactId>mysql-connector-j</artifactId>
-                                    <scope>runtime</scope>
-                                </dependency>
-                                <dependency>
-                                    <groupId>com.baomidou</groupId>
-                                    <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
-                                    <version>3.5.12</version>
-                                </dependency>
-                                <dependency>
-                                    <groupId>cn.dev33</groupId>
-                                    <artifactId>sa-token-spring-boot3-starter</artifactId>
-                                    <version>1.44.0</version>
-                                </dependency>
-                                <dependency>
-                                    <groupId>org.springframework.boot</groupId>
-                                    <artifactId>spring-boot-starter-test</artifactId>
-                                    <scope>test</scope>
-                                </dependency>
-                            </dependencies>”，yml信息如下：“spring:
-                                                        application:
-                                                          name: PrinterSystem
-                                                        datasource:
-                                                          url: jdbc:mysql://localhost:3306/print_service_system?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
-                                                          username: root
-                                                          password: Pubg20061027
-                                                          driver-class-name: com.mysql.cj.jdbc.Driver
+所有接口均返回统一格式：
 
-                                                      server:
-                                                        port: 8080
+```json
+{
+  "ifSuccess": true,
+  "status": 200,
+  "response": "操作成功",
+  "data": {}
+}
+```
 
-                                                      mybatis-plus:
-                                                        configuration:
-                                                          log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
-                                                        mapper-locations: classpath*:mapper/**/*.xml
+对应 Java 类：`ResponseResult<T>`
 
-                                                      sa-token:
-                                                        token-name: satoken
-                                                        timeout: 2592000
-                                                        is-concurrent: true
-                                                        is-share: true
-                                                        is-read-cookie: false
-                                                        isPrint: true
-                                                        isLog: true
+### ✅ 异常处理机制
 
-”，现在可以在这些基础上继续完善
+- 使用 `@RestControllerAdvice` 统一处理异常。
+- 抛出 `BusinessException(code, message)` 来触发自定义错误响应。
+- 已支持对 `Exception`、`IllegalArgumentException`、`SecurityException` 等常见异常的捕获和友好提示。
+
+### ✅ 鉴权控制
+
+- 所有需要登录访问的接口由 Sa-Token 控制权限。
+- 配置类 `SaTokenConfig.java` 中已放行 `/api/user/register` 和 `/api/user/login`。
+- 其他接口默认需登录访问（通过 `StpUtil.checkLogin()` 判断）。
+
+### ✅ 接口设计规范
+
+- 所有接口路径以 `/api/xxx` 开头。
+- 请求参数统一使用 `@RequestBody` + JSON 格式传递。
+- 分页查询接口接受 `page` 和 `size` 查询参数（类型为 String）。
+- 敏感字段（如密码）不在响应中返回。
+- RESTful 风格：
+  - `GET /api/order/{id}` 获取单个订单
+  - `POST /api/order` 创建订单
+  - `PUT /api/order/{id}` 更新订单
+  - `DELETE /api/order/{id}` 删除订单
+
+### ✅ 事务管理
+
+- 对涉及多个数据库操作的方法（如下单、支付状态变更），添加 `@Transactional` 注解保证数据一致性。
+- 在 Service 层方法上声明事务边界。
+
+### ✅ 模拟支付功能
+
+- 提供一个模拟支付接口，接收订单 ID，将订单状态从 `UNPAID` 改为 `PAID`，并更新支付时间。
+- 可扩展为调用第三方支付平台回调逻辑。
+
+### ✅ 管理员模块功能
+
+- 禁用/启用用户账户（修改 `users.status` 字段）
+- 查看所有订单（支持分页）
+- 修改订单状态（如设为已完成）
+- 查看系统统计数据（按日统计）
+
+---
+
+以下是有关文件的代码说明：“package com.powercess.printersystem.printersystem.exception;
+
+              import lombok.Getter;
+
+              public class BusinessException extends RuntimeException {
+                  @Getter
+                  private final int code;
+                  private final String message;
+                  public BusinessException(int code, String message) {
+                      super(message);
+                      this.code = code;
+                      this.message = message;
+                  }
+
+                  @Override
+                  public String getMessage() {
+                      return message;
+                  }
+              }”和“package com.powercess.printersystem.printersystem.exception;
+
+                  import com.powercess.printersystem.printersystem.dto.ResponseResult;
+                  import org.springframework.http.HttpStatus;
+                  import org.springframework.web.bind.annotation.ExceptionHandler;
+                  import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+                  @RestControllerAdvice
+                  public class GlobalExceptionHandler {
+                      @ExceptionHandler(BusinessException.class)
+                      public ResponseResult<String> handleBusinessException(BusinessException ex) {
+                          return ResponseResult.error(ex.getCode(), ex.getMessage());
+                      }
+                      @ExceptionHandler(SecurityException.class)
+                      public ResponseResult<String> handleSecurityException(SecurityException ex) {
+                          return ResponseResult.error(HttpStatus.FORBIDDEN.value(), ex.getMessage());
+                      }
+                      @ExceptionHandler(java.io.FileNotFoundException.class)
+                      public ResponseResult<String> handleFileNotFoundException(java.io.FileNotFoundException ex) {
+                          return ResponseResult.error(HttpStatus.NOT_FOUND.value(), ex.getMessage());
+                      }
+                      @ExceptionHandler(IllegalArgumentException.class)
+                      public ResponseResult<String> handleIllegalArgumentException(IllegalArgumentException ex) {
+                          return ResponseResult.error(HttpStatus.BAD_REQUEST.value(), ex.getMessage());
+                      }
+                      @ExceptionHandler(Exception.class)
+                      public ResponseResult<String> handleUnexpectedException(Exception ex) {
+                          ex.printStackTrace();
+                          return ResponseResult.error(HttpStatus.INTERNAL_SERVER_ERROR.value(), "服务器内部错误：" + ex.getMessage());
+                      }
+                  }”和“package com.powercess.printersystem.printersystem.dto;
+
+                      import lombok.Data;
+                      @Data
+                      public class ResponseResult<T> {
+                          private boolean ifSuccess;
+                          private int status;
+                          private String response;
+                          private T data;
+                          public static <T> ResponseResult<T> success(T data) {
+                              ResponseResult<T> result = new ResponseResult<>();
+                              result.setIfSuccess(true);
+                              result.setStatus(200);
+                              result.setResponse("操作成功");
+                              result.setData(data);
+                              return result;
+                          }
+                          public static <T> ResponseResult<T> error(int status, String message) {
+                              ResponseResult<T> result = new ResponseResult<>();
+                              result.setIfSuccess(false);
+                              result.setStatus(status);
+                              result.setResponse(message);
+                              return result;
+                          }
+                      }”
+yml文件：“spring:
+         application:
+           name: PrinterSystem
+         datasource:
+           url: jdbc:mysql://localhost:3306/print_service_system?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
+           username: root
+           password: Pubg20061027
+           driver-class-name: com.mysql.cj.jdbc.Driver
+         servlet:
+           multipart:
+             max-file-size: 50MB
+             max-request-size: 50MB
+
+       server:
+         port: 8080
+
+       mybatis-plus:
+         configuration:
+           log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+         mapper-locations: classpath*:mapper/**/*.xml
+
+       sa-token:
+         token-name: satoken
+         timeout: 2592000
+         is-concurrent: true
+         is-share: true
+         is-read-cookie: false
+         isPrint: true
+         isLog: true
+
+”
+密码工具类：“package com.powercess.printersystem.printersystem.utils;
+
+       import org.mindrot.jbcrypt.BCrypt;
+       public class PasswordUtils {
+           /**
+            * 加密明文密码
+            */
+           public static String hashPassword(String plainText) {
+               return BCrypt.hashpw(plainText, BCrypt.gensalt());
+           }
+           /**
+            * 验证密码是否匹配
+            */
+           public static boolean checkPassword(String plainText, String hashed) {
+               return BCrypt.checkpw(plainText, hashed);
+           }
+       }”
