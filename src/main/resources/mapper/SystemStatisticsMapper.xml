@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.powercess.printersystem.printersystem.mapper.SystemStatisticsMapper">
+
+    <!-- 插入或更新每日统计数据 -->
+    <insert id="incrementDailyStats" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO system_statistics (
+            date,
+            total_orders,
+            total_printed_pages,
+            total_income
+        ) VALUES (
+                     #{date},
+                     1,
+                     #{pages},
+                     #{income}
+                 )
+        ON DUPLICATE KEY UPDATE
+                             total_orders = total_orders + 1,
+                             total_printed_pages = total_printed_pages + #{pages},
+                             total_income = total_income + #{income},
+                             updated_at = NOW()
+    </insert>
+
+</mapper>

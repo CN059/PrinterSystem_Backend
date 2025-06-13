@@ -46,4 +46,13 @@
         WHERE id = #{id}
     </update>
 
+    <select id="getUserLevelById" resultType="int">
+        SELECT level FROM users WHERE id = #{id}
+    </select>
+
+    <update id="updateUserLevel">
+        UPDATE users
+        SET level = #{level}
+        WHERE id = #{userId}
+    </update>
 </mapper>

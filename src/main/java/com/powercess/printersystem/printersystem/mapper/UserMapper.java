@@ -11,4 +11,6 @@ public interface UserMapper {
     void insert(User user);
     void update(User user);
     void updatePasswordById(@Param("id") Long id, @Param("password") String password);
+    Integer getUserLevelById(Integer id);
+    void updateUserLevel(@Param("userId") Long userId, @Param("level") int level);
 }

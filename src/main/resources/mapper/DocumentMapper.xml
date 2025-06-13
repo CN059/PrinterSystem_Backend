@@ -32,4 +32,7 @@
             is_deleted = #{isDeleted}
         WHERE id = #{id}
     </update>
+    <select id="getPageCountById" resultType="int">
+        SELECT page_count FROM documents WHERE id = #{id}
+    </select>
 </mapper>

@@ -14,5 +14,6 @@ public class User {
     private String role; // USER / ADMIN
     private String status; // ENABLED / DISABLED
     private Integer exp;
+    private Integer level; // 用户等级（1-6）
     private LocalDateTime createdAt;
 }

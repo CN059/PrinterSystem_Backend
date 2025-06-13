@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.powercess.printersystem.printersystem.mapper.OrderMapper">
+    <insert id="insertOrder" parameterType="com.powercess.printersystem.printersystem.model.PrintOrder" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO print_orders (
+            order_no, user_id, document_id, address_id,
+            total_pages, price, print_range, duplex,
+            orientation, binding, copies, remark,
+            status, created_at, paid_at, completed_at, shipping_remark
+        ) VALUES (
+                     #{orderNo}, #{userId}, #{documentId}, #{addressId},
+                     #{totalPages}, #{price}, #{printRange}, #{duplex},
+                     #{orientation}, #{binding}, #{copies}, #{remark},
+                     #{status}, #{createdAt}, #{paidAt}, #{completedAt}, #{shippingRemark}
+                 )
+    </insert>
+    <select id="selectById" resultType="com.powercess.printersystem.printersystem.model.PrintOrder">
+        SELECT * FROM print_orders WHERE id = #{id}
+    </select>
+    <select id="selectByUserId" resultType="com.powercess.printersystem.printersystem.model.PrintOrder">
+        SELECT * FROM print_orders WHERE user_id = #{userId} ORDER BY created_at DESC
+    </select>
+    <update id="updateOrderStatus">
+        UPDATE print_orders
+        SET status = #{status}, completed_at = NOW()
+        WHERE id = #{id}
+    </update>
+    <update id="updateOrderToPaid">
+        UPDATE print_orders
+        SET status = 'PAID', paid_at = #{paidAt}
+        WHERE id = #{id}
+    </update>
+    <select id="selectAllOrders" resultType="com.powercess.printersystem.printersystem.model.PrintOrder">
+        SELECT * FROM print_orders ORDER BY created_at DESC
+    </select>
+    <delete id="deleteOrderById">
+        DELETE FROM print_orders WHERE id = #{id}
+    </delete>
+</mapper>

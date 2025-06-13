@@ -6,6 +6,8 @@ import com.powercess.printersystem.printersystem.mapper.DocumentMapper;
 import com.powercess.printersystem.printersystem.model.Document;
 import com.powercess.printersystem.printersystem.service.DocumentService;
 import jakarta.servlet.http.HttpServletResponse;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -54,26 +56,35 @@ public class DocumentServiceImpl implements DocumentService {
             throw new BusinessException(400, "仅支持 PDF 文件");
         }
         try {
+            // 1. 创建存储目录
             File monthDir = getMonthlyDirectory();
             if (!monthDir.exists()) monthDir.mkdirs();
+            // 2. 生成唯一文件名并保存文件
             String uniqueFileName = generateUniqueFileName();
             File destFile = new File(monthDir, uniqueFileName);
             file.transferTo(destFile);
-            Document document = new Document();
-            document.setUserId(userId);
-            document.setFileName(file.getOriginalFilename());
-            document.setFilePath(getRelativePath(destFile));
-            document.setPageCount(1); // 示例值，后续可扩展识别
-            document.setUploadedAt(LocalDateTime.now());
-            document.setIsPrinted(false);
-            document.setIsDeleted(false);
-            documentMapper.insert(document);
+            // 3. 使用 PDFBox 读取 PDF 页数
+            int pageCount;
+            try (PDDocument document = Loader.loadPDF(destFile)) {
+                pageCount = document.getNumberOfPages();
+            }
+            // 4. 构建 Document 对象并插入数据库
+            Document dbDocument = new Document();
+            dbDocument.setUserId(userId);
+            dbDocument.setFileName(file.getOriginalFilename());
+            dbDocument.setFilePath(getRelativePath(destFile));
+            dbDocument.setPageCount(pageCount); // ✅ 正确设置页数
+            dbDocument.setUploadedAt(LocalDateTime.now());
+            dbDocument.setIsPrinted(false);
+            dbDocument.setIsDeleted(false);
+            documentMapper.insert(dbDocument);
+            // 5. 返回响应数据
             Map<String, Object> data = new HashMap<>();
-            data.put("id", document.getId());
-            data.put("fileName", document.getFileName());
-            data.put("filePath", document.getFilePath());
-            data.put("pageCount", document.getPageCount());
-            data.put("uploadedAt", document.getUploadedAt());
+            data.put("id", dbDocument.getId());
+            data.put("fileName", dbDocument.getFileName());
+            data.put("filePath", dbDocument.getFilePath());
+            data.put("pageCount", dbDocument.getPageCount());
+            data.put("uploadedAt", dbDocument.getUploadedAt());
             return data;
         } catch (IOException e) {
             throw new BusinessException(500, "文件上传失败: " + e.getMessage());

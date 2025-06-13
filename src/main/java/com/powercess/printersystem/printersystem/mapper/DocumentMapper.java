@@ -11,4 +11,5 @@ public interface DocumentMapper {
     Document selectById(Long id);
     void insert(Document document);
     void updateById(Document document);
+    Integer getPageCountById(Integer id);
 }
